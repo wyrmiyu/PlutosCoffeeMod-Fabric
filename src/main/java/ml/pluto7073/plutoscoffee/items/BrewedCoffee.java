@@ -1,5 +1,6 @@
 package ml.pluto7073.plutoscoffee.items;
 
+import ml.pluto7073.pdapi.addition.chemicals.ConsumableChemicalRegistry;
 import ml.pluto7073.pdapi.item.AbstractCustomizableDrinkItem;
 import ml.pluto7073.plutoscoffee.CoffeeUtil;
 import ml.pluto7073.plutoscoffee.coffee.CoffeeType;
@@ -8,6 +9,7 @@ import ml.pluto7073.plutoscoffee.registry.ModStats;
 import net.minecraft.ChatFormatting;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -16,6 +18,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
 
 @MethodsReturnNonnullByDefault
@@ -54,8 +57,9 @@ public class BrewedCoffee extends AbstractCustomizableDrinkItem {
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag config) {
-        if (CoffeeUtil.getCoffeeType(stack) != CoffeeTypes.EMPTY)
+        if (CoffeeUtil.getCoffeeType(stack) != CoffeeTypes.EMPTY) {
             tooltip.add(Component.translatable(CoffeeUtil.getCoffeeType(stack).getTranslationKey()).withStyle(ChatFormatting.GRAY));
+        }
         super.appendHoverText(stack, context, tooltip, config);
     }
 

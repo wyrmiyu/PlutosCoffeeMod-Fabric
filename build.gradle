@@ -20,6 +20,7 @@ sourceSets {
 }
 
 repositories {
+	mavenLocal()  // Add local Maven repository for locally built dependencies
 	maven { url "https://maven.shedaniel.me/" }
 	maven { url "https://maven.architectury.dev/" }
 	maven { url "https://maven.terraformersmc.com/releases/" }

@@ -6,7 +6,6 @@ import ml.pluto7073.pdapi.component.PDComponents;
 import ml.pluto7073.pdapi.util.DrinkUtil;
 import ml.pluto7073.pdapi.addition.DrinkAddition;
 import ml.pluto7073.pdapi.addition.DrinkAdditionManager;
-import ml.pluto7073.pdapi.item.AbstractCustomizableDrinkItem;
 import ml.pluto7073.plutoscoffee.coffee.CoffeeType;
 import ml.pluto7073.plutoscoffee.coffee.CoffeeTypes;
 import ml.pluto7073.plutoscoffee.items.BrewedCoffee;
@@ -17,7 +16,7 @@ import ml.pluto7073.plutoscoffee.tags.ModItemTags;
 import net.fabricmc.fabric.api.tag.convention.v2.TagUtil;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -108,12 +107,7 @@ public final class CoffeeUtil {
         return 255 << 24 | (int) r << 16 | (int) g << 8 | (int) b;
     }
 
-    public static ItemStack getWithAdditions(ItemStack stack, String... additions) {
-        DrinkAdditions base = stack.getOrDefault(PDComponents.ADDITIONS, DrinkAdditions.EMPTY);
-        DrinkAdditions addIns = DrinkAdditions.or(base, DrinkAdditions.of(Arrays.stream(additions).map(ResourceLocation::new).toList()));
-        stack.set(PDComponents.ADDITIONS, addIns);
-        return stack;
-    }
+
 
     public static int getLatteColour(ItemStack stack) {
         DrinkAddition[] addIns = DrinkUtil.getAdditionsFromStack(stack);
@@ -177,6 +171,159 @@ public final class CoffeeUtil {
         List<Pair<StructurePoolElement, Integer>> pieceCounts = new ArrayList<>(((StructurePoolAccessor) pool).getRawTemplates());
         pieceCounts.add(new Pair<>(piece, weight));
         ((StructurePoolAccessor) pool).setRawTemplates(pieceCounts);
+    }    /**
+     * Creates a copy of the given ItemStack with additional DrinkAdditions.
+     * This method is used by villager trades to create specialty drinks.
+     *
+     * @param stack The base ItemStack to add additions to
+     * @param additions String IDs of the additions to add (e.g., "pdapi:honey", "plutoscoffee:mocha_syrup")
+     * @return A new ItemStack with the specified additions
+     */
+    public static ItemStack getWithAdditions(ItemStack stack, String... additions) {
+        if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+            PlutosCoffee.LOGGER.debug("[PlutosCoffee] getWithAdditions called with {} and additions: {}", 
+                stack.getItem(), java.util.Arrays.toString(additions));
+        }
+        
+        ItemStack result = stack.copy();
+
+        // Get existing additions or create empty if none
+        DrinkAdditions existingAdditions = result.getOrDefault(PDComponents.ADDITIONS, DrinkAdditions.EMPTY);
+        if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+            PlutosCoffee.LOGGER.debug("[PlutosCoffee] Existing additions: {}", existingAdditions);
+        }
+        
+        // Log existing addition IDs for debugging
+        if (!existingAdditions.additions().isEmpty() && PlutosCoffee.LOGGER.isDebugEnabled()) {
+            for (DrinkAddition existing : existingAdditions.additions()) {
+                PlutosCoffee.LOGGER.debug("[PlutosCoffee] Existing addition ID: {}", DrinkAdditionManager.getId(existing));
+            }
+        }
+
+        // Add each new addition
+        for (String additionId : additions) {
+            try {
+                ResourceLocation id = new ResourceLocation(additionId);
+                if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+                    PlutosCoffee.LOGGER.debug("[PlutosCoffee] Looking for DrinkAddition with ID: {}", id);
+                }
+                DrinkAddition addition = DrinkAdditionManager.get(id);
+                if (addition != null) {
+                    if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+                        PlutosCoffee.LOGGER.debug("[PlutosCoffee] Found addition: {}, adding to existing", addition);
+                    }
+                    existingAdditions = existingAdditions.withAddition(addition);
+                } else {
+                    PlutosCoffee.LOGGER.warn("[PlutosCoffee] Failed to find DrinkAddition with ID: {}", additionId);
+                }
+            } catch (Exception e) {
+                PlutosCoffee.LOGGER.error("[PlutosCoffee] Failed to parse addition ID: {}", additionId, e);
+            }
+        }
+
+        if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+            PlutosCoffee.LOGGER.debug("[PlutosCoffee] Final additions to set: {}", existingAdditions);
+        }
+        // Set the updated additions on the result stack
+        result.set(PDComponents.ADDITIONS, existingAdditions);
+        
+        // Note: Display name is handled by AbstractCustomizableDrinkItem.getName() override
+        // No need to set custom name component here
+        
+        if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+            PlutosCoffee.LOGGER.debug("[PlutosCoffee] Returning result with additions: {}", result.getOrDefault(PDComponents.ADDITIONS, DrinkAdditions.EMPTY));
+            PlutosCoffee.LOGGER.debug("[PlutosCoffee] Result item display name: {}", result.getDisplayName().getString());
+        }
+        return result;
+    }
+
+    /**
+     * Creates a drink with specialty additions where only the specialty additions are shown in the display name
+     * (like a real cafe menu), while all additions are preserved for functionality and tooltips.
+     * 
+     * @param stack The base ItemStack to add additions to
+     * @param specialtyAdditions The specialty additions that should appear in the display name
+     * @return A new ItemStack with all additions but display name showing only specialty ones
+     */
+    public static ItemStack getWithSpecialtyAdditions(ItemStack stack, String... specialtyAdditions) {
+        if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+            PlutosCoffee.LOGGER.debug("[PlutosCoffee] getWithSpecialtyAdditions called with {} and specialty additions: {}", 
+                stack.getItem(), java.util.Arrays.toString(specialtyAdditions));
+        }
+        
+        ItemStack result = stack.copy();
+
+        // Get existing additions or create empty if none
+        DrinkAdditions existingAdditions = result.getOrDefault(PDComponents.ADDITIONS, DrinkAdditions.EMPTY);
+        if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+            PlutosCoffee.LOGGER.debug("[PlutosCoffee] Existing additions: {}", existingAdditions);
+        }
+
+        // Add each specialty addition to the full additions (for functionality)
+        for (String additionId : specialtyAdditions) {
+            try {
+                ResourceLocation id = new ResourceLocation(additionId);
+                if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+                    PlutosCoffee.LOGGER.debug("[PlutosCoffee] Looking for DrinkAddition with ID: {}", id);
+                }
+                DrinkAddition addition = DrinkAdditionManager.get(id);
+                if (addition != null) {
+                    if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+                        PlutosCoffee.LOGGER.debug("[PlutosCoffee] Found addition: {}, adding to existing", addition);
+                    }
+                    existingAdditions = existingAdditions.withAddition(addition);
+                } else {
+                    PlutosCoffee.LOGGER.warn("[PlutosCoffee] Failed to find DrinkAddition with ID: {}", additionId);
+                }
+            } catch (Exception e) {
+                PlutosCoffee.LOGGER.error("[PlutosCoffee] Failed to parse addition ID: {}", additionId, e);
+            }
+        }
+
+        // Set the updated additions on the result stack (all additions for functionality)
+        result.set(PDComponents.ADDITIONS, existingAdditions);
+        
+        // Create display name with only specialty additions (cafe menu style)
+        if (specialtyAdditions.length > 0) {
+            // Get the base name from the original stack (without additions) to avoid recursion
+            // This gives us just "Latte" instead of "Espresso Shot Espresso Shot Latte"
+            Component baseName = stack.getItem().getDescription();
+            StringBuilder nameBuilder = new StringBuilder();
+            
+            // Build name like "Glow Berries Latte" (only specialty additions)
+            for (String additionId : specialtyAdditions) {
+                try {
+                    ResourceLocation id = new ResourceLocation(additionId);
+                    // Convert "pdapi:glow_berries" to "Glow Berries"
+                    String additionName = id.getPath().replace("_", " ");
+                    String[] words = additionName.split("\\s+");
+                    for (int i = 0; i < words.length; i++) {
+                        if (!words[i].isEmpty()) {
+                            words[i] = words[i].substring(0, 1).toUpperCase() + words[i].substring(1).toLowerCase();
+                        }
+                    }
+                    if (nameBuilder.length() > 0) {
+                        nameBuilder.append(" ");
+                    }
+                    nameBuilder.append(String.join(" ", words));
+                } catch (Exception e) {
+                    PlutosCoffee.LOGGER.error("[PlutosCoffee] Failed to parse specialty addition name: {}", additionId, e);
+                }
+            }
+            
+            if (nameBuilder.length() > 0) {
+                // Real cafe style: just "Specialty Latte", not "Specialty Espresso Shot Espresso Shot Latte"
+                Component customName = Component.literal(nameBuilder.toString() + " " + baseName.getString());
+                result.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, customName);
+                if (PlutosCoffee.LOGGER.isDebugEnabled()) {
+                    PlutosCoffee.LOGGER.debug("[PlutosCoffee] Set specialty display name: {}", customName.getString());
+                }
+            }
+        }
+        
+        PlutosCoffee.LOGGER.info("[PlutosCoffee] Created specialty drink: {} with additions: {}", 
+            result.getDisplayName().getString(), existingAdditions);
+        return result;
     }
 
 }

@@ -1,21 +1,15 @@
 package ml.pluto7073.plutoscoffee.items;
 
-import ml.pluto7073.pdapi.component.DrinkAdditions;
-import ml.pluto7073.pdapi.component.PDComponents;
 import ml.pluto7073.pdapi.item.AbstractCustomizableDrinkItem;
+import ml.pluto7073.plutoscoffee.CoffeeUtil;
 import ml.pluto7073.plutoscoffee.registry.ModItems;
 import ml.pluto7073.plutoscoffee.registry.ModStats;
 import net.minecraft.MethodsReturnNonnullByDefault;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-
-import java.util.List;
 
 @MethodsReturnNonnullByDefault
 public class LatteItem extends AbstractCustomizableDrinkItem {
@@ -36,9 +30,8 @@ public class LatteItem extends AbstractCustomizableDrinkItem {
 
     public static ItemStack getStandardLatte() {
         ItemStack stack = new ItemStack(ModItems.LATTE);
-        ResourceLocation shot = new ResourceLocation("plutoscoffee:espresso_shot");
-        stack.set(PDComponents.ADDITIONS, DrinkAdditions.of(List.of(shot, shot)));
-        return stack;
+        // Use getWithAdditions to ensure proper timing of addition lookup
+        return CoffeeUtil.getWithAdditions(stack, "plutoscoffee:espresso_shot", "plutoscoffee:espresso_shot");
     }
 
 }
